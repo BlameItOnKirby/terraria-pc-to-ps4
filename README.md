@@ -4,6 +4,13 @@ Convert Terraria worlds (`.wld`) and players (`.plr`) **from PC to (decrypted) P
 
 Every existing converter (the Extractinator, `ps4-terraria-decrypter`) only goes PS4 → PC. This tool was built by reverse-engineering those tools' source code, then verified byte-for-byte against real save data and tested end-to-end on a stock PS5.
 
+## Download
+No Python Needed - grab **TerrariaConverter.exe** from the [Latest Release](../../releases/latest).
+
+pick a (`.wld`) or (`.plr`), hit convert, done.
+
+Prefer the command line? see [Usage](#usage) below
+
 ## The format
 
 A decrypted PS4 Terraria save wraps the PC file as follows (all integers little-endian):
@@ -64,6 +71,16 @@ This tool produces the *decrypted* PS4-format file — the same layer the Extrac
 5. Copy it back to the console via USB.
 
 Old PC worlds work too — a 1.3.5-era world (v194) was tested loading on a 1.4.5 console, which auto-migrates it on first load.
+
+## Full workflow for TerrariaConverter.exe
+The converter outputs the **decrypted** PS4-format file. To get it onto your console:
+
+1. **Decrypt one of your PS4 saves.** You need an existing decrypted world save to swap into. Free option: [GarlicSaves](https://garlicsaves.com) — no Save Wizard required. (Save Wizard and Apollo Save Tool also work.)
+2. **Swap the world file.** In the decrypted save folder, find the `.wld` (e.g. `World25.wld`). Back it up, then copy in your converted file **renamed to match exactly** — if the original was `World25.wld`, your file must be named `World25.wld`. Leave `sce_sys/` and everything else untouched.
+3. **Re-encrypt and re-sign** the save with the same tool you used to decrypt.
+4. **Copy it back** to your console via USB.
+
+The world will show up in your world list. Old PC worlds work too — a 1.3.5-era world was tested loading on a 1.4.5 console, which auto-migrates it on first load.
 
 ## Verification
 
