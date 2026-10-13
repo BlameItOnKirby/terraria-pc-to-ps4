@@ -1,61 +1,54 @@
-# Terraria PC → PS4 Save Converter
+# Terraria Converter V3 — PC ↔ PS4 Toolkit
 
-Convert Terraria worlds (`.wld`) and players (`.plr`) **from PC to (decrypted) PS4 format** — the direction no other tool covers. Also converts back (PS4 → PC).
-
-Every existing converter (the Extractinator, `ps4-terraria-decrypter`) only goes PS4 → PC. This tool was built by reverse-engineering those tools' source code, then verified byte-for-byte against real save data and tested end-to-end on a stock PS5.
+Convert Terraria worlds (`.wld`) and players (`.plr`) between **PC and PS4** with a single tool. No other converter covers the PC → PS4 direction — this was built by reverse-engineering existing tools, then verified on real hardware.
 
 ## Download
 
-No Python needed — grab **TerrariaConverter.exe** from the [latest release](../../releases/latest).
+Get `TerrariaConverterV3.exe` from the [latest release](../../releases/latest). No Python needed — it's a single self-contained app.
 
-## Quick start (the app)
+To build from source, see [Building](#building).
 
-1. Open **TerrariaConverter.exe**.
-2. Pick your **PC world** (`.wld`).
-3. Pick your **decrypted PS4 save folder** (the one with a `.wld` and `sce_sys/` inside).
-4. Hit **PACKAGE FOR PS4**.
+## How it works
 
-You get a `.zip` ready to upload for encryption. The app converts your world, swaps it into the save (keeping the original filename, backing up the old one), and zips everything the way encryption tools expect.
+V3 uses **template slots** — 10 pre-made PS4 saves called "Terraria PC to PS4" (World2, World4–World12). You pick a slot, drop in your PC world, and V3 swaps it into the template. The output is a decrypted save ready to encrypt for your console.
 
-## What to do with the ZIP
+Why templates instead of generating from scratch? The PS4 save metadata (`param.sfo`) contains a 1024-byte `PARAMS` field with save-specific cryptographic data that can't be forged. Swapping into a real template is the only reliable method — proven on stock PS5 hardware.
 
-1. Go to [GarlicSaves](https://garlicsaves.com) (free — no Save Wizard needed).
-2. Upload the ZIP and encrypt it for **your** account ID.
-3. Copy the encrypted save back to your console via USB.
+## Worlds tab
 
-The world shows up in your world list. Old PC worlds work too — a 1.3.5-era world was tested loading on a 1.4.5 console, which auto-migrates it on first load.
+1. **Pick a template slot** from the dropdown (World2, World4, World5, … World12)
+2. **Pick your PC `.wld`** file
+3. Optionally set **difficulty** (Normal / Expert / Master / Journey — requires world version 209+)
+4. Optionally set a new **world name**
+5. Hit **CONVERT WORLD** → get a ZIP ready for GarlicSaves
 
-Don't have a decrypted save to start from? Decrypt any of your PS4 Terraria saves first (GarlicSaves, Save Wizard, or Apollo Save Tool), then use that folder in the app.
+To go the other way (PS4 → PC), flip the direction toggle.
 
-## Command line (Python script)
+### Getting it on your console
 
-Prefer the terminal, or only need a straight conversion without packaging? Use `terraria_pc_to_ps4.py`:
+1. Convert your world in V3 → you get a ZIP
+2. Upload the ZIP to [GarlicSaves](https://garlicsaves.com) to encrypt for your account
+3. Copy the encrypted save to USB → PS5/PS4 → load and play
 
-```bash
-# PC -> PS4 (default): writes _PS4.wld next to the input
-python3 terraria_pc_to_ps4.py myworld.wld
+Old PC worlds work — a 1.3.5-era world (v194) was tested loading on a 1.4.5 console, which auto-migrates on first load.
 
-# PC -> PS4 with an explicit output path
-python3 terraria_pc_to_ps4.py myplayer.plr -o converted.plr
+## Players tab
 
-# PS4 -> PC: writes _PC.wld
-python3 terraria_pc_to_ps4.py --to-pc myworld_PS4.wld
+Convert `.plr` files between PC and PS4 format (AES-128-CBC layer). Requires `pycryptodome` when running from source (bundled in the exe).
 
-# Force the file type (auto-detected from extension/content otherwise)
-python3 terraria_pc_to_ps4.py --type wld somefile.bin
-```
+### Inventory editor
 
-Every conversion is **round-trip verified** before anything is written: PC → PS4 output is unwrapped again and compared byte-for-byte with the input. If verification fails, no file is written.
+Hit **EDIT INVENTORY** to open Terrasavr Plus (bundled, works offline):
 
-If you only did a straight conversion (not the app's packaging), the manual swap is:
-
-1. Decrypt your PS4 save.
-2. In the decrypted folder, replace the existing `.wld` with the converted file, **renamed to match exactly** (e.g. `World25.wld`). Leave `sce_sys/` and everything else untouched.
-3. Re-encrypt and re-sign, copy back via USB.
+1. Pick your `.plr` file
+2. Click Edit Inventory — V3 converts to PC format and opens the editor
+3. Load the temp file in your browser, edit items/equipment
+4. Download the modified `.plr`
+5. Convert back with PC → PS4
 
 ## The format
 
-A decrypted PS4 Terraria save wraps the PC file as follows (all integers little-endian):
+Decrypted PS4 saves wrap PC files as follows (all integers little-endian):
 
 **Worlds (`.wld`)**
 
@@ -67,38 +60,59 @@ A decrypted PS4 Terraria save wraps the PC file as follows (all integers little-
 
 **Players (`.plr`)**
 
-The whole PC `.plr` is encrypted with **AES-128-CBC**, key = IV = the UTF-16LE string `h3y_gUyZ`:
+AES-128-CBC encrypted, key = IV = UTF-16LE `"h3y_gUyZ"`:
 
 ```
 68 00 33 00 79 00 5F 00 67 00 55 00 79 00 5A 00
 ```
 
-PC files are already 16-byte aligned, so no padding is needed in practice.
-
-## Requirements (Python script only)
-
-- Python 3.8+
-- `pycryptodome` (only needed for `.plr` conversion — worlds use only the standard library)
+## Building
 
 ```bash
-pip install -r requirements.txt
+pip install pyinstaller pycryptodome
 ```
 
-The `.exe` needs nothing — it's self-contained.
+Double-click `build_exe_v3.bat` (Windows). The exe lands in `dist/`.
+
+Or manually:
+
+```bash
+pyinstaller --onefile --windowed --name=TerrariaConverterV3 \
+  --add-data "v3_templates;v3_templates" \
+  --add-data "terrasavr;terrasavr" \
+  terraria_converter_v3.py
+```
+
+## CLI
+
+The core conversion also works from the command line:
+
+```bash
+# PC -> PS4 world (via template slot)
+python3 terraria_converter_v3.py  # launches GUI
+```
+
+For scriptable conversions, see `v3_swap.py`:
+
+```python
+from v3_swap import swap_pc_to_ps4
+swap_pc_to_ps4("myworld.wld", "World5", "/tmp/out")
+```
 
 ## Verification
 
-- `.wld` and `.plr` conversions verified byte-identical against the sample vectors shipped with `ps4-terraria-decrypter` (`World4`, `magic.plr`).
-- Header bytes, magic, and size fields verified against a real decrypted PS4 save (CUSA00740).
-- End-to-end test: PC world → converted → swapped into a decrypted save → re-signed → **loaded and playable on a stock PS5**.
+- `.wld` / `.plr` conversions verified byte-identical against `ps4-terraria-decrypter` sample vectors
+- Template swap method tested end-to-end on **stock PS5**: PC world → swapped into template → encrypted via GarlicSaves → loaded and playable
+- From-scratch save generation was attempted and **rejected** — shows up in the world list but hangs on load due to unforgable `PARAMS` crypto. The template swap is the correct approach.
 
 ## Credits
 
 Reverse-engineered from:
 
-- [willturr/the-extractinator](https://github.com/willturr/the-extractinator) — PS4 → PC direction
-- [bucanero/save-decrypters](https://github.com/bucanero/save-decrypters) (`ps4-terraria-decrypter` by [hzh](https://github.com/hzh)) — the 8-byte `.wld` header and the `.plr` AES layer
+- [willturr/the-extractinator](https://github.com/willturr/the-extractinator)
+- [bucanero/save-decrypters](https://github.com/bucanero/save-decrypters) (ps4-terraria-decrypter by [hzh](https://github.com/hzhreal/))
+- [Terrasavr Plus](https://yellowafterlife.itch.io/terrasavr) by YellowAfterlife (bundled for offline inventory editing)
 
 ## Disclaimer
 
-Not affiliated with Re-Logic, 505 Games, or DR Studios. For interoperability and personal backup use. Back up your saves before converting — use at your own risk.
+Not affiliated with Re-Logic, 505 Games, or DR Studios. For interoperability and personal backup use. Back up your saves before converting.
